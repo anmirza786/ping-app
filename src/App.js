@@ -1,65 +1,11 @@
 import './App.css';
-import { regions } from './regions';
-import axios from 'axios'
-import logo from './logo.svg';
-import { useCallback, useEffect, useMemo, useState } from 'react'
 import Table from './Table';
+import { useState } from 'react'
+import { regions } from './regions';
 
-// const instance = axios.create()
-
-// instance.interceptors.request.use((config) => {
-//   config.headers['request-startTime'] = new Date().getTime();
-//   return config
-// })
-
-// instance.interceptors.response.use((response) => {
-//   const currentTime = new Date().getTime()      
-//   const startTime = response.config.headers['request-startTime']      
-//   response.headers['request-duration'] = currentTime - startTime      
-//   return response
-// })
-
-// function ping(host) {
-
-//   var started = new Date().getTime();
-
-//   var http = new XMLHttpRequest();
-//   let sig;
-
-//   http.open("GET", "http://" + host, /*async*/true);
-//   http.onreadystatechange = function() {
-//     if (http.readyState === 1) {
-//       var ended = new Date().getTime();
-
-//       var milliseconds = ended - started;
-//       sig=milliseconds
-//     }
-//   };
-//   try {
-//     http.send(null);
-//     console.log(sig)
-//   } catch(exception) {
-//     // this is expected
-//   }
-
-// }
-const instance = axios.create() 
-instance.interceptors.request.use((config) => {
-  config.headers['request-startTime'] = new Date().getTime();
-  return config
-})
-
-instance.interceptors.response.use((response) => {
-  const currentTime = new Date().getTime()      
-  const startTime = response.config.headers['request-startTime']      
-  response.headers['request-duration'] = currentTime - startTime      
-  return response
-})
 
 const ping = async (url,data, timeout = 6000) => {
   return await new Promise((resolve, reject) => {
-    const urlRule = new RegExp('(https?|ftp|file)://[-A-Za-z0-9+&@#/%?=~_|!:,.;]+[-A-Za-z0-9+&@#/%=~_|]');
-    if (!urlRule.test(url)) reject('invalid url');
     let start = new Date().getTime();
     try {
       fetch(url)
@@ -67,7 +13,7 @@ const ping = async (url,data, timeout = 6000) => {
           const currentTime = new Date().getTime()
           const newdata = {
             ...data,
-            pingtime:currentTime-start
+            pingtime:[...data.pingtime,currentTime-start]
           }
           
           resolve(newdata)
@@ -75,7 +21,7 @@ const ping = async (url,data, timeout = 6000) => {
         .catch(() => {
           const newdata = {
             ...data,
-            pingtime:0
+            pingtime:[0]
           }
           resolve(newdata)
         });
@@ -90,53 +36,53 @@ const ping = async (url,data, timeout = 6000) => {
 
 function App() {
   const [newdataping,setNewDataPing] = useState(null)
-  useMemo(()=>{
-    return setNewDataPing(newdataping)  
-  },[newdataping])
-  useEffect(()=>{
-    return setNewDataPing(newdataping)  
-  },[newdataping])
-  useCallback(()=>{
-    return setNewDataPing(newdataping)  
-  },[newdataping])
-  // setTimeout(async () => {
-  //   regions.forEach(r=>{
-  //     ping(`https://dynamodb.${r.regionName}.amazonaws.com/ping?x=35gg91n9v9i00`)
-  // .then(res=>console.log(res))
-  // .catch(e=>console.log(""))
-  //     // await ping()
-  // })
-  //  }, 10000);
+  const [testobj,setTestObj] = useState({})
+  const [pingedData,setPingedData] = useState(null)
   let newarray = []
-  async function handelping (){
+  function pingFunction (array){
     newarray = []
-    await regions.forEach(r=>{
-      let newdata = {
-        name:r.displayName,
-        geography: r.geography,
-        regionName: r.regionName
+    array.forEach(r=>{
+      let newdata
+      if(testobj){
+        newdata= {
+          name:r.name,
+          geography: r.geography,
+          regionName: r.regionName,
+          pingtime: r.pingtime
+        }
       }
+      else
+      {newdata= {
+        name:r.name,
+        geography: r.geography,
+        regionName: r.regionName,
+        pingtime: []
+      }}
       ping(`https://dynamodb.${r.regionName}.amazonaws.com/ping?x=35gg91n9v9i00`,newdata)
       .then(res=>
         {
-          
-          // console.log(res)
+          setTestObj(res)
           newarray.push(res)
-          // console.log(newarray)
         }
         )
-        .catch(e=>console.log(""))
-        setNewDataPing(newarray)
-      })
-      
+      }) 
+      setNewDataPing(newarray)
       renderTable()
+  }
+  function handelping (){
+    if (pingedData){
+      pingFunction(pingedData)
+    }
+    else{
+      pingFunction(regions)
+    }
   }
   function renderTable(){
     
-      if (newdataping)
-        return <Table data = {newdataping}/>
-      else
-        return <h1>Ping Please</h1>
+    if (newdataping)
+      return <Table data = {newdataping} pingedData = { setPingedData }/>
+    else
+      return <h1>Ping Please</h1>
   }
   return (
     <div className="App">
